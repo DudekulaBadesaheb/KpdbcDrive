@@ -1,0 +1,212 @@
+<!doctype html>
+<html>
+  <head>
+    <title>KPDBC Login</title>
+
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/tsparticles@2/tsparticles.bundle.min.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+
+      /* particles */
+      #particles {
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        background: linear-gradient(135deg, #0d6efd, #000);
+      }
+
+      /* card */
+      .card {
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      }
+
+      /* colors */
+      .login-box {
+        background: #fff;
+      }
+      .register-box {
+        background: #e8f5e9;
+      }
+
+      .small-link {
+        cursor: pointer;
+        color: #0d6efd;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="particles"></div>
+
+    <div class="container mt-5">
+      <div class="row justify-content-center">
+        <!-- LOGIN -->
+        <div class="col-md-5">
+          <div class="card p-4 login-box" id="loginBox">
+            <h4 class="text-center">🔐 Login</h4>
+
+            <input id="l_email" class="form-control mb-2" placeholder="Email" />
+            <input
+              id="l_mobile"
+              class="form-control mb-3"
+              placeholder="Mobile"
+            />
+
+            <button class="btn btn-primary w-100" onclick="login()">
+              Login
+            </button>
+
+            <p class="text-center mt-2">
+              <span class="small-link" onclick="showRegister()"
+                >Create Account</span
+              >
+            </p>
+          </div>
+        </div>
+
+        <!-- REGISTER -->
+        <div class="col-md-5" id="registerBox" style="display: none">
+          <div class="card p-4 register-box">
+            <h4 class="text-center">📝 Register</h4>
+
+            <input id="name" class="form-control mb-2" placeholder="Name" />
+            <input id="email" class="form-control mb-2" placeholder="Email" />
+            <input id="mobile" class="form-control mb-3" placeholder="Mobile" />
+
+            <button class="btn btn-success w-100" onclick="register()">
+              Register
+            </button>
+
+            <p class="text-center mt-2">
+              <span class="small-link" onclick="showLogin()"
+                >Back to Login</span
+              >
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const API =
+        "https://script.google.com/macros/s/AKfycbyTYGx880F4bspI7S1C6SsLwCzkgsINz3p7kyRt1W62EPkTIOBy8uzkubGksJ8GaHQoSQ/exec";
+
+      /* API */
+      async function api(action, data = {}) {
+        data.action = action;
+        let r = await fetch(API, {
+          method: "POST",
+          body: new URLSearchParams(data),
+        });
+        return r.json();
+      }
+
+      /* SWITCH */
+      function showRegister() {
+        registerBox.style.display = "block";
+        loginBox.style.display = "none";
+      }
+      function showLogin() {
+        registerBox.style.display = "none";
+        loginBox.style.display = "block";
+      }
+
+      /* REGISTER */
+      function register() {
+        if (!name.value || !email.value || !mobile.value) {
+          alert("Fill all fields");
+          return;
+        }
+
+        api("registerUser", {
+          name: name.value,
+          email: email.value,
+          mobile: mobile.value,
+        }).then(() => {
+          alert("✅ Registered");
+          showLogin();
+        });
+      }
+
+      /* LOGIN (WORKING VERSION) */
+      async function login() {
+        let emailVal = l_email.value.trim();
+        let mobileVal = l_mobile.value.trim();
+
+        if (!emailVal || !mobileVal) {
+          alert("Enter Email & Mobile");
+          return;
+        }
+
+        /* CHECK USER EXISTS */
+        let res = await api("getUserPosts", { email: emailVal });
+
+        if (!res || !res.batches) {
+          alert("❌ Account not registered");
+          return;
+        }
+
+        /* OPTIONAL MOBILE CHECK (basic) */
+        if (mobileVal.length < 5) {
+          alert("❌ Invalid mobile number");
+          return;
+        }
+
+        /* SAVE SESSION */
+        localStorage.setItem("email", emailVal);
+
+        /* START AUTO LOGOUT */
+        startAutoLogout();
+
+        location.href = "dashboard.html";
+      }
+
+      /* AUTO LOGOUT */
+      let timer;
+
+      function resetTimer() {
+        clearTimeout(timer);
+        timer = setTimeout(
+          () => {
+            alert("⏰ Session expired");
+            localStorage.clear();
+            location.reload();
+          },
+          15 * 60 * 1000,
+        );
+      }
+
+      function startAutoLogout() {
+        document.onmousemove = resetTimer;
+        document.onkeypress = resetTimer;
+        resetTimer();
+      }
+
+      /* PARTICLES */
+      tsParticles.load("particles", {
+        particles: {
+          number: { value: 80 },
+          size: { value: 3 },
+          move: { enable: true, speed: 2 },
+          links: { enable: true },
+        },
+        interactivity: {
+          events: {
+            onHover: { enable: true, mode: "repulse" },
+          },
+        },
+      });
+    </script>
+  </body>
+</html>
