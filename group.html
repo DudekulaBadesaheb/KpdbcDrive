@@ -1,7 +1,8 @@
 <!doctype html>
 <html>
   <head>
-    <title>Group Chat</title>
+    <title>KPDBC Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
@@ -12,77 +13,129 @@
       rel="stylesheet"
     />
 
-    <script src="https://cdn.jsdelivr.net/npm/tsparticles@2/tsparticles.bundle.min.js"></script>
-
     <style>
       body {
-        background: #0f2027;
+        background: #0b0f1a;
         color: white;
+        margin: 0;
       }
 
+      /* HEADER */
+      .header {
+        background: #111;
+        padding: 10px;
+        display: flex;
+        justify-content: space-between;
+      }
+
+      /* CHAT */
       .chat-box {
-        height: 400px;
+        height: 70vh;
         overflow: auto;
         padding: 10px;
-        background: #111;
-        border-radius: 10px;
       }
 
       .msg {
-        padding: 8px;
-        margin: 5px;
-        border-radius: 10px;
-        background: #1e3c72;
-        max-width: 70%;
+        max-width: 75%;
+        padding: 10px;
+        margin: 6px;
+        border-radius: 12px;
+        background: #1e293b;
+        position: relative;
       }
-
       .me {
-        background: #0d6efd;
+        background: #2563eb;
         margin-left: auto;
       }
 
+      /* MENU */
+      .menu-btn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+      }
+
+      /* REPLY */
+      .reply-box {
+        border-left: 3px solid #0d6efd;
+        padding-left: 5px;
+        font-size: 12px;
+        opacity: 0.8;
+        cursor: pointer;
+      }
+
+      /* VIEWER */
+      #viewer {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #000;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 999;
+      }
+      #viewer img,
+      #viewer iframe {
+        max-width: 90%;
+        max-height: 90%;
+      }
+
+      /* INPUT */
       .input-bar {
         position: fixed;
         bottom: 0;
-        left: 0;
         width: 100%;
-        background: #222;
-        padding: 10px;
+        background: #111;
         display: flex;
         gap: 5px;
+        padding: 10px;
       }
 
-      input {
-        flex: 1;
+      /* SCREEN SHARE */
+      #screenBox {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 70%;
+        display: none;
+        background: #000;
       }
-
-      .menu {
-        cursor: pointer;
-        float: right;
-      }
-
-      .preview img,
       video {
         width: 100%;
-        border-radius: 10px;
-        margin-top: 5px;
       }
     </style>
   </head>
 
   <body>
-    <div id="tsparticles"></div>
-
-    <div class="container mt-2">
-      <h5 id="title"></h5>
-
-      <div id="chat" class="chat-box"></div>
+    <div class="header">
+      <div>
+        <b id="title"></b><br />
+        <small id="online"></small>
+      </div>
     </div>
 
-    <!-- INPUT BAR -->
+    <div id="screenBox">
+      <video id="screenVideo" autoplay></video>
+    </div>
+
+    <div id="chat" class="chat-box"></div>
+
+    <!-- INPUT -->
     <div class="input-bar">
+      <button onclick="startVoice()" class="btn btn-danger">
+        <i class="bi bi-mic"></i>
+      </button>
+
       <button onclick="openCamera()" class="btn btn-warning">
         <i class="bi bi-camera"></i>
+      </button>
+
+      <button onclick="startScreenShare()" class="btn btn-success">
+        <i class="bi bi-display"></i>
       </button>
 
       <input type="file" id="file" hidden onchange="uploadFile()" />
@@ -90,41 +143,27 @@
         <i class="bi bi-paperclip"></i>
       </button>
 
-      <input id="msg" class="form-control" placeholder="Type message..." />
+      <input id="msg" class="form-control" placeholder="Message" />
 
       <button onclick="send()" class="btn btn-primary">
         <i class="bi bi-send"></i>
       </button>
     </div>
 
-    <!-- CAMERA -->
-    <div
-      id="cameraBox"
-      style="
-        display: none;
-        position: fixed;
-        top: 10%;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #000;
-        padding: 10px;
-      "
-    >
-      <video id="video" autoplay></video>
-      <button onclick="capture()" class="btn btn-success">Capture</button>
-      <button onclick="closeCamera()" class="btn btn-danger">Close</button>
-    </div>
+    <div id="viewer" onclick="this.style.display = 'none'"></div>
 
     <script>
       const API =
-        "https://script.google.com/macros/s/AKfycbyTYGx880F4bspI7S1C6SsLwCzkgsINz3p7kyRt1W62EPkTIOBy8uzkubGksJ8GaHQoSQ/exec";
+        "https://script.google.com/macros/s/AKfycbxQJjWWD9qj2sSzuHbO0RgoVLrX2FMrXblNtwfbT0S1BhSphHLDl9ipN-gJn0UANm8e7A/exec";
 
       let email = localStorage.getItem("email");
       let batchId = localStorage.getItem("batchId");
 
-      title.innerText = localStorage.getItem("batchName");
+      title.innerText = localStorage.getItem("batchName") || "Group Chat";
 
-      // API
+      let replyId = null;
+
+      /* API */
       async function api(a, d = {}) {
         d.action = a;
         let r = await fetch(API, {
@@ -134,30 +173,52 @@
         return r.json();
       }
 
-      // SEND TEXT
+      /* SEND */
       function send() {
         if (!msg.value) return;
 
-        api("sendMessage", { batchId, email, message: msg.value }).then(() => {
+        api("sendMessage", {
+          batchId,
+          email,
+          message: msg.value,
+          replyTo: replyId,
+        }).then(() => {
           msg.value = "";
+          replyId = null;
           loadChat();
         });
       }
 
-      // LOAD CHAT
+      /* LOAD CHAT */
       function loadChat() {
         api("getMessages", { batchId }).then((r) => {
           chat.innerHTML = "";
 
           r.chats.forEach((c) => {
             let div = document.createElement("div");
+            div.id = c.id;
             div.className = "msg " + (c.email == email ? "me" : "");
 
+            let replyHTML = "";
+            if (c.replyTo) {
+              replyHTML = `<div class="reply-box" onclick="scrollToMsg('${c.replyTo}')">↩ Reply</div>`;
+            }
+
             div.innerHTML = `
-<b>${c.email}</b><br>
-${renderContent(c.message)}
-<span class="menu" onclick="openOptions('${c.message}')">⋮</span>
-`;
+     ${replyHTML}
+     <b>${c.email}</b><br>
+     ${render(c.message)}
+
+     <div class="dropdown menu-btn">
+       <button class="btn btn-sm btn-light" data-bs-toggle="dropdown">⋮</button>
+       <ul class="dropdown-menu">
+         <li><a class="dropdown-item" onclick="copyMsg('${c.message}')">Copy</a></li>
+         <li><a class="dropdown-item" onclick="downloadMsg('${c.message}')">Download</a></li>
+         <li><a class="dropdown-item" onclick="setReply('${c.id}')">Reply</a></li>
+         <li><a class="dropdown-item text-danger" onclick="deleteMsg('${c.id}')">Delete</a></li>
+       </ul>
+     </div>
+     `;
 
             chat.appendChild(div);
           });
@@ -166,25 +227,76 @@ ${renderContent(c.message)}
         });
       }
 
-      // CONTENT RENDER
-      function renderContent(m) {
+      /* RENDER */
+      function render(m) {
         if (m.startsWith("IMG:")) {
-          return `<div class="preview"><img src="${m.replace("IMG:", "")}"></div>`;
+          let u = m.replace("IMG:", "");
+          return `<img src="${u}" onclick="view('${u}','img')">`;
         }
-        if (m.startsWith("VID:")) {
-          return `<div class="preview"><video controls src="${m.replace("VID:", "")}"></video></div>`;
+
+        if (m.startsWith("FILE:")) {
+          let u = m.replace("FILE:", "");
+          return `<a onclick="view('${u}','file')">📄 Open File</a>`;
         }
+
         if (m.startsWith("AUD:")) {
-          return `<audio controls src="${m.replace("AUD:", "")}"></audio>`;
+          let u = m.replace("AUD:", "");
+          return `<audio controls src="${u}"></audio>`;
         }
+
         return m;
       }
 
-      // FILE UPLOAD
+      /* VIEW */
+      function view(src, type) {
+        viewer.style.display = "flex";
+
+        if (type == "img") {
+          viewer.innerHTML = `<img src="${src}">`;
+        } else {
+          viewer.innerHTML = `<iframe src="${src}"></iframe>`;
+        }
+      }
+
+      /* COPY */
+      function copyMsg(text) {
+        navigator.clipboard.writeText(text);
+      }
+
+      /* DOWNLOAD */
+      function downloadMsg(text) {
+        let url = text.replace(/^(IMG:|FILE:|AUD:)/, "");
+        let a = document.createElement("a");
+        a.href = url;
+        a.download = "";
+        a.click();
+      }
+
+      /* DELETE */
+      function deleteMsg(id) {
+        api("deleteMessage", { id }).then(loadChat);
+      }
+
+      /* REPLY */
+      function setReply(id) {
+        replyId = id;
+      }
+
+      /* SCROLL */
+      function scrollToMsg(id) {
+        let el = document.getElementById(id);
+        if (el) {
+          el.style.background = "yellow";
+          el.scrollIntoView({ behavior: "smooth" });
+          setTimeout(() => (el.style.background = ""), 2000);
+        }
+      }
+
+      /* FILE */
       function uploadFile() {
         let f = file.files[0];
-
         let reader = new FileReader();
+
         reader.onload = (e) => {
           let base64 = e.target.result.split(",")[1];
 
@@ -195,91 +307,109 @@ ${renderContent(c.message)}
             mimetype: f.type,
             createdBy: email,
           }).then((res) => {
-            let url = res.url;
-
-            // SEND IN CHAT
             let type = "FILE:";
             if (f.type.startsWith("image")) type = "IMG:";
-            if (f.type.startsWith("video")) type = "VID:";
             if (f.type.startsWith("audio")) type = "AUD:";
 
-            api("sendMessage", { batchId, email, message: type + url }).then(
-              loadChat,
-            );
+            api("sendMessage", {
+              batchId,
+              email,
+              message: type + res.url,
+            }).then(loadChat);
           });
         };
+
         reader.readAsDataURL(f);
       }
 
-      // CAMERA
-      let stream;
-
+      /* CAMERA */
       function openCamera() {
-        cameraBox.style.display = "block";
-        navigator.mediaDevices.getUserMedia({ video: true }).then((s) => {
-          stream = s;
-          video.srcObject = s;
+        navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+          let video = document.createElement("video");
+          video.srcObject = stream;
+          video.play();
+          document.body.appendChild(video);
+
+          setTimeout(() => {
+            let canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext("2d").drawImage(video, 0, 0);
+
+            let base64 = canvas.toDataURL().split(",")[1];
+
+            api("uploadFile", {
+              batchId,
+              filedata: base64,
+              filename: "photo.png",
+              mimetype: "image/png",
+              createdBy: email,
+            }).then((res) => {
+              api("sendMessage", {
+                batchId,
+                email,
+                message: "IMG:" + res.url,
+              }).then(loadChat);
+            });
+
+            stream.getTracks().forEach((t) => t.stop());
+            video.remove();
+          }, 2000);
         });
       }
 
-      function capture() {
-        let canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext("2d").drawImage(video, 0, 0);
+      /* VOICE */
+      function startVoice() {
+        navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+          let rec = new MediaRecorder(stream);
+          let chunks = [];
 
-        let base64 = canvas.toDataURL("image/png").split(",")[1];
+          rec.ondataavailable = (e) => chunks.push(e.data);
+          rec.onstop = () => {
+            let blob = new Blob(chunks);
+            let reader = new FileReader();
 
-        api("uploadFile", {
-          batchId,
-          filedata: base64,
-          filename: "photo.png",
-          mimetype: "image/png",
-          createdBy: email,
-        }).then((res) => {
-          api("sendMessage", {
-            batchId,
-            email,
-            message: "IMG:" + res.url,
-          }).then(loadChat);
+            reader.onload = (e) => {
+              let base64 = e.target.result.split(",")[1];
+
+              api("uploadFile", {
+                batchId,
+                filedata: base64,
+                filename: "voice.mp3",
+                mimetype: "audio/mp3",
+                createdBy: email,
+              }).then((res) => {
+                api("sendMessage", {
+                  batchId,
+                  email,
+                  message: "AUD:" + res.url,
+                }).then(loadChat);
+              });
+            };
+
+            reader.readAsDataURL(blob);
+          };
+
+          rec.start();
+          setTimeout(() => rec.stop(), 5000);
         });
-
-        closeCamera();
       }
 
-      function closeCamera() {
-        cameraBox.style.display = "none";
-        if (stream) stream.getTracks().forEach((t) => t.stop());
+      /* SCREEN SHARE */
+      function startScreenShare() {
+        navigator.mediaDevices
+          .getDisplayMedia({ video: true })
+          .then((stream) => {
+            screenBox.style.display = "block";
+            screenVideo.srcObject = stream;
+          });
       }
 
-      // OPTIONS MENU
-      function openOptions(text) {
-        let choice = prompt("1.Copy\n2.Download\n3.Share");
-
-        if (choice == 1) {
-          navigator.clipboard.writeText(text);
-          alert("Copied");
-        }
-        if (choice == 2) {
-          window.open(text);
-        }
-        if (choice == 3) {
-          navigator.share && navigator.share({ text });
-        }
-      }
-
-      // AUTO LOAD
+      /* AUTO */
       setInterval(loadChat, 2000);
       loadChat();
-
-      // PARTICLES
-      tsParticles.load("tsparticles", {
-        particles: {
-          number: { value: 50 },
-          move: { enable: true },
-          links: { enable: true },
-        },
-      });
     </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   </body>
 </html>
