@@ -59,6 +59,37 @@
         border-radius: 10px;
         margin-top: 10px;
       }
+      #filesPreview .card{
+
+margin-bottom:20px;
+
+transition:.3s;
+
+}
+
+#filesPreview .card:hover{
+
+transform:translateY(-4px);
+
+box-shadow:0 10px 25px rgba(0,0,0,.4);
+
+}
+
+#filesPreview img{
+
+height:220px;
+
+object-fit:cover;
+
+}
+
+#filesPreview video{
+
+height:220px;
+
+object-fit:cover;
+
+}
     </style>
   </head>
 
@@ -170,18 +201,81 @@
         });
 
         // SHOW FILES
-        r.posts.forEach((p) => {
-          let url = p[7];
-          let type = p[6];
+// SHOW FILES
+// SHOW FILES
+r.posts.forEach((p) => {
 
-          if (type && type.startsWith("image")) {
-            filesPreview.innerHTML += `<img src="${url}">`;
-          } else if (type && type.startsWith("video")) {
-            filesPreview.innerHTML += `<video controls src="${url}"></video>`;
-          } else {
-            filesPreview.innerHTML += `<div><a href="${url}" target="_blank">📄 ${p[3]}</a></div>`;
-          }
-        });
+    const id = p[0];
+    const type = p[2] || "";
+    const fileName = p[3] || "File";
+    const viewUrl = p[4];
+    const downloadUrl = p[7];
+    const openUrl = p[8];
+
+    let preview = "";
+
+    if (type.startsWith("image")) {
+
+        preview = `
+            <img src="${viewUrl}"
+                 class="img-fluid rounded shadow"
+                 style="height:220px;object-fit:cover;cursor:pointer"
+                 onclick="window.open('${openUrl}','_blank')">
+        `;
+
+    } else if (type.startsWith("video")) {
+
+        preview = `
+            <video controls
+                   style="width:100%;height:220px;border-radius:10px">
+                <source src="${viewUrl}">
+            </video>
+        `;
+
+    } else {
+
+        preview = `
+            <div class="text-center p-4">
+                <i class="bi bi-file-earmark-text fs-1"></i>
+                <div class="mt-2">${fileName}</div>
+            </div>
+        `;
+
+    }
+
+    filesPreview.innerHTML += `
+        <div class="card p-3 mt-3">
+
+            ${preview}
+
+            <div class="mt-3 d-flex flex-wrap gap-2">
+
+                <button class="btn btn-primary btn-sm"
+                        onclick="window.open('${openUrl}','_blank')">
+                    <i class="bi bi-eye"></i> View
+                </button>
+
+                <button class="btn btn-success btn-sm"
+                        onclick="window.open('${downloadUrl}','_blank')">
+                    <i class="bi bi-download"></i> Download
+                </button>
+
+                <button class="btn btn-warning btn-sm"
+                        onclick="shareFile('${openUrl}')">
+                    <i class="bi bi-share"></i> Share
+                </button>
+
+                <button class="btn btn-danger btn-sm"
+                        onclick="deletePost('${id}')">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+
+            </div>
+
+        </div>
+    `;
+
+});
       });
 
       function openGroup(id, name) {
@@ -270,6 +364,68 @@
       function closeNotes() {
         notesBox.style.display = "none";
       }
+
+
+
+// ======================================
+// FILE ACTIONS (PASTE HERE)
+// ======================================
+
+// VIEW FILE
+function openFile(url, type) {
+  window.open(url, "_blank");
+}
+
+// DOWNLOAD
+function downloadFile(url) {
+  let a = document.createElement("a");
+  a.href = url;
+  a.download = "";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+// SHARE
+function shareFile(url) {
+  if (navigator.share) {
+    navigator.share({
+      title: "KPDBC File",
+      url: url
+    });
+  } else {
+    navigator.clipboard.writeText(url);
+    alert("Link Copied");
+  }
+}
+
+// IMAGE VIEW
+function viewImage(url) {
+  window.open(url, "_blank");
+}
+
+// VIDEO VIEW
+function viewVideo(url) {
+  window.open(url, "_blank");
+}
+
+// DELETE
+function deleteFile(id) {
+  if (!confirm("Delete this file?")) return;
+
+  api("deleteFile", {
+    id: id
+  }).then((r) => {
+    alert("Deleted");
+    location.reload();
+  });
+}
+
+
+// ======================================
+// PARTICLES
+// ======================================
+
 
       // PARTICLES
       tsParticles.load("tsparticles", {
